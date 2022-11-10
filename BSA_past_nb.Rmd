@@ -1,0 +1,19 @@
+---
+title: "BSA_past_13-18"
+output: html_notebook
+---
+
+```{r libraries}
+library(tidyverse)
+library(flexdashboard)
+library(psych)
+library(qualtRics)
+```
+
+```{r}
+BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
+
+
+
+```
+
