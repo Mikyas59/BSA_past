@@ -48,6 +48,68 @@ BSA_past18.2 %>%
 ```
 
 ```{r}
+##How many times did orgs take survey?
+BSA_past18.2 %>%
+  group_by(Org_Name, survey_year) %>%
+  count(n())
+##There may be a number of cases where only one participant took survey in a particular year (likely a case of different survey end dates)
+##A number of surveys without org names. could be derived from ImportedSurveyName. 
+
+##Assign org-name for those without an orgname derived from the Importedsurveyname. 
+##58 observations with no orgname.  
+BSA_past18.2 %>%
+  filter(is.na(Org_Name))
+
+BSA_past18.2$Org_Name <- if_else(is.na(BSA_past18.2$Org_Name), str_sub(BSA_past18.2$ImportedFromSurveyName, 1, -5), BSA_past18.2$Org_Name)
+
+##for orgname==Edgewood, survey year =2014. orgname==PENCIL, year==2014. 
+##for orgname==National CASA association Pennsylvania, year ==2017
+
+##New survey year variable adopted from the ImportedfromsurveyName varialbe. 
+
+##BSA_past18.2$survey_year2 <- str_sub(BSA_past18.2$ImportedFromSurveyName, -4, -1)
+
+BSA_past18.2 <- BSA_past18.2%>%
+  mutate(survey_year2 = case_when(
+    BSA_past18.2$Org_Name == "Edgewood" ~ "2014",
+    BSA_past18.2$Org_Name == "PENCIL" ~ "2014",
+    BSA_past18.2$Org_Name == "National CASA Association - Pennsylvania" ~ "2017",
+    TRUE ~ str_sub(BSA_past18.2$ImportedFromSurveyName, -4, -1))
+  )
+
+##Fit typo of year 2106 to 2016. 
+BSA_past18.2$survey_year2 <- if_else(BSA_past18.2$survey_year2 == "2106", "2016", BSA_past18.2$survey_year2)
+
+table(BSA_past18.2$survey_year2)
+
+##Get rid of phrases "Board Assessment" and "BSA" for orgnames derived from the importedsurveyname 
+table(str_which(BSA_past18.2$Org_Name, "BSA"))
+table(str_detect(BSA_past18.2$Org_Name, "Board Assessment"))
+
+BSA_past18.2$Org_Name <- str_remove(BSA_past18.2$Org_Name, "BSA" )
+BSA_past18.2$Org_Name <- str_remove(BSA_past18.2$Org_Name, "Board Assessment")
+
+
+table(str_detect(BSA_past18.2$Org_Name, "BSA"))
+
+
+##How many times have orgs taken the survey 
+BSA_past18.3 <- BSA_past18.2 %>%
+  group_by(Org_Name)%>%
+  arrange(Org_Name)%>%
+  distinct(survey_year2)
+
+##Need a way to limit a copy dataset to just orgs who have taken the survey more than once. 
+##74 organizations have taken the survey more than once. 
+BSA_past_multi <- BSA_past18.3 %>%
+  count(n()) %>%
+  filter(n>1)
+
+```
+
+```{r basic board performance summary}
+#Overall summary of board performance aka Benchmarking. 
+
 
 ```
 
