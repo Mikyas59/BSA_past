@@ -8,12 +8,46 @@ library(tidyverse)
 library(flexdashboard)
 library(psych)
 library(qualtRics)
+library(usethis)
+library(sjlabelled)
+library(stringr)
+library(lubridate)
+
+use_github(protocol = "https", auth_token = Sys.getenv("GITHUB_PAT"))
 ```
 
 ```{r}
 BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
 
+questions<-data.frame(names(BSA_past18), get_label(BSA_past18))
 
+##Look at how many finished survey/level of progress
+describe(BSA_past18$Progress)
+
+##Make a copy of original file. 
+BSA_past18.2 <- BSA_past18
+
+
+##Extract date from datetime values in EndDate variable. 
+BSA_past18.2 <- separate(BSA_past18.2, EndDate, into = c("Survey_enddate", "surveyendtime"), sep = " ", remove = FALSE, convert = TRUE)
+
+##Extract year values from survey _enddate variable and deltete extraneous values. 
+
+BSA_past18.2$survey_year <- str_sub(BSA_past18.2$Survey_enddate, -4, -1)
+
+BSA_past18.2 <- BSA_past18.2 %>%
+  select(-c(surveyendtime))
+  
+
+##overall 14,024 responses. Breakdown number of responses by year. 
+BSA_past18.2 %>%
+  group_by(survey_year)%>%
+  count(n())
+
+  
+```
+
+```{r}
 
 ```
 
