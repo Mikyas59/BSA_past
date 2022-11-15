@@ -1,9 +1,11 @@
 ---
 title: "BSA_past_13-18"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
-```{r libraries}
+```{r libraries, echo=FALSE}
 library(tidyverse)
 library(flexdashboard)
 library(psych)
@@ -12,53 +14,55 @@ library(usethis)
 library(sjlabelled)
 library(stringr)
 library(lubridate)
+library(rio)
+library(data.table)
 
-use_github(protocol = "https", auth_token = Sys.getenv("GITHUB_PAT"))
+#use_github(protocol = "https", auth_token = Sys.getenv("GITHUB_PAT"))
 ```
 
-```{r}
+```{r import, echo=FALSE}
 BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
 
-questions<-data.frame(names(BSA_past18), get_label(BSA_past18))
+#questions<-data.frame(names(BSA_past18), get_label(BSA_past18))
 
 ##Look at how many finished survey/level of progress
-describe(BSA_past18$Progress)
+#describe(BSA_past18$Progress)
 
 ##Make a copy of original file. 
 BSA_past18.2 <- BSA_past18
-
+#saveRDS(BSA_past18.2, file = "BSA_past18.2") 
 
 ##Extract date from datetime values in EndDate variable. 
-BSA_past18.2 <- separate(BSA_past18.2, EndDate, into = c("Survey_enddate", "surveyendtime"), sep = " ", remove = FALSE, convert = TRUE)
+#BSA_past18.2 <- separate(BSA_past18.2, EndDate, into = c("Survey_enddate", "surveyendtime"), sep = " ", remove = FALSE, convert = TRUE)
 
-##Extract year values from survey _enddate variable and deltete extraneous values. 
+##Extract year values from survey _enddate variable and delete extraneous values. 
 
-BSA_past18.2$survey_year <- str_sub(BSA_past18.2$Survey_enddate, -4, -1)
+#BSA_past18.2$survey_year <- str_sub(BSA_past18.2$Survey_enddate, -4, -1)
 
-BSA_past18.2 <- BSA_past18.2 %>%
-  select(-c(surveyendtime))
+#BSA_past18.2 <- BSA_past18.2 %>%
+ # select(-c(surveyendtime))
   
 
 ##overall 14,024 responses. Breakdown number of responses by year. 
-BSA_past18.2 %>%
-  group_by(survey_year)%>%
-  count(n())
+#BSA_past18.2 %>%
+ # group_by(survey_year)%>%
+  # count(n())
 
   
 ```
 
-```{r}
+```{r wrangle, echo=FALSE, warning=TRUE}
 ##How many times did orgs take survey?
-BSA_past18.2 %>%
-  group_by(Org_Name, survey_year) %>%
-  count(n())
+#BSA_past18.2 %>%
+ # group_by(Org_Name, survey_year) %>%
+# count(n())
 ##There may be a number of cases where only one participant took survey in a particular year (likely a case of different survey end dates)
 ##A number of surveys without org names. could be derived from ImportedSurveyName. 
 
 ##Assign org-name for those without an orgname derived from the Importedsurveyname. 
 ##58 observations with no orgname.  
-BSA_past18.2 %>%
-  filter(is.na(Org_Name))
+#BSA_past18.2 %>%
+#  filter(is.na(Org_Name))
 
 BSA_past18.2$Org_Name <- if_else(is.na(BSA_past18.2$Org_Name), str_sub(BSA_past18.2$ImportedFromSurveyName, 1, -5), BSA_past18.2$Org_Name)
 
@@ -80,7 +84,7 @@ BSA_past18.2 <- BSA_past18.2%>%
 ##Fit typo of year 2106 to 2016. 
 BSA_past18.2$survey_year2 <- if_else(BSA_past18.2$survey_year2 == "2106", "2016", BSA_past18.2$survey_year2)
 
-table(BSA_past18.2$survey_year2)
+ftable(BSA_past18.2$survey_year2)
 
 ##Get rid of phrases "Board Assessment" and "BSA" for orgnames derived from the importedsurveyname 
 table(str_which(BSA_past18.2$Org_Name, "BSA"))
@@ -94,21 +98,182 @@ table(str_detect(BSA_past18.2$Org_Name, "BSA"))
 
 
 ##How many times have orgs taken the survey 
-BSA_past18.3 <- BSA_past18.2 %>%
+BSA_past18.4 <- BSA_past18.2 %>%
   group_by(Org_Name)%>%
   arrange(Org_Name)%>%
   distinct(survey_year2)
 
-##Need a way to limit a copy dataset to just orgs who have taken the survey more than once. 
+##Need a way to limit a copy data set to just orgs who have taken the survey more than once. 
 ##74 organizations have taken the survey more than once. 
-BSA_past_multi <- BSA_past18.3 %>%
+BSA_past_multi <- BSA_past18.4 %>%
   count(n()) %>%
   filter(n>1)
+BSA_past_multi
 
 ```
 
-```{r basic board performance summary}
+```{r basic board performance summary, echo=FALSE}
 #Overall summary of board performance aka Benchmarking. 
+
+##Set 99 to missing. 
+BSA_past18.2 <- BSA_past18.2 %>%
+  na_if(99)
+
+attach(BSA_past18.2)
+Mission <- BSA_past18.2 %>% 
+   select(starts_with("M_A1"))
+Mission <- colnames(Mission)  ##Variables assessing performance related to mission. 
+Strategy <- BSA_past18.2 %>%
+  select(starts_with("ST_A2"))
+Strategy <- colnames(Strategy)
+
+Fund <- BSA_past18.2 %>%
+  select(F_B1_6_strategy:F_B1_11_fulfill)
+Fund <- colnames(Fund)
+
+image <- BSA_past18.2 %>%
+  select(F_B1_1_image:F_B1_5_sources, F_B1_12_impact:F_B1_13_educate)
+
+##Probably enough for now. 
+
+##Benchmark values for mission area. 
+mission_bench <- BSA_past18.2 %>%
+  select(starts_with("M_A1"))%>%
+  summarise_all(mean, na.rm = TRUE)
+
+##Create bar chart showing means on mission area. 
+mission_bench <- data.frame(mission_bench)
+mission_bench <- t(mission_bench)
+mission_bench <- data.frame(mission_bench)
+mission_bench$area <- row.names(mission_bench) 
+
+ggplot(data = mission_bench) + 
+  geom_bar(aes(y=area, x=mission_bench), stat = "identity", fill ="lightblue"
+           )  
+```
+
+```{r composite scores, echo=FALSE}
+### Create composite scores for the different areas (mission, strategy, public image, funding, board composition, program oversight, financial oversight, CEO supervision, board structure and meetings.)
+
+BSA_past18.3 <-  BSA_past18.2 %>%
+  mutate(mission_composite = rowMeans(select(BSA_past18.2,
+                                             starts_with("M_A1")), na.rm = TRUE)) %>%
+  
+  mutate(stragey_composite = rowMeans(select(BSA_past18.2,
+                                             starts_with("ST_A2")), na.rm = TRUE)) %>%
+  
+  mutate(image_composite = rowMeans(select(BSA_past18.2,F_B1_1_image:F_B1_5_sources, F_B1_12_impact, F_B1_13_educate), na.rm = TRUE)) %>%
+  
+  mutate(fund_composite = rowMeans(select(BSA_past18.2,F_B1_6_strategy:F_B1_11_fulfill), na.rm = TRUE)) %>%
+  
+  mutate(brdcmp_composite = rowMeans(select(BSA_past18.2,BC_B2_1_lead:BC_B2_9_diverse), na.rm = TRUE)) %>%
+  
+  mutate(program_composite = rowMeans(select(BSA_past18.2,
+                                             PO_C1_1_know:PO_C1_6_impact), na.rm = TRUE)) %>%
+  
+  mutate(Fidoversight_composite = rowMeans(select(BSA_past18.2,
+                                                  FO_C2_1_priorities:FO_C2_8_F990), na.rm = TRUE)) %>%
+  
+  mutate(CEO_supervise_composite = rowMeans(select(BSA_past18.2, 
+                                                   CO_C3_1_trust:CO_C3_7_depart), na.rm = TRUE)) %>%
+  
+  mutate(Brd_str_composite = rowMeans(select(BSA_past18.2,
+                                             BS_D1_1_legal:BS_D1_8_comm), na.rm = TRUE)) %>%
+  
+  mutate(meet_composite = rowMeans(select(BSA_past18.2, MT_D2_1_trust:MT_D2_7_engage), na.rm = TRUE))
+  
+  
+BSA_past18.3 <- BSA_past18.3 %>%
+  mutate(round(across(mission_composite:meet_composite), digits = 2))
+  
+  
+```
+
+```{r multiple takers, echo=FALSE}
+###Compare composite scores (last occasion vs benchmark for repeat takers)
+##identify repeat takers in a copy of the working data set. 
+
+BSA_past18.5 <- BSA_past18.3 %>%
+    mutate(user = case_when(
+    BSA_past18.3$Org_Name %in% BSA_past_multi$Org_Name ~ "repeat-taker",
+    TRUE ~ "one-time")
+  )
+
+#table(BSA_past18.5$user)
+##Summarize means based on user freq. (org is one time BSA-user or repeat taker)
+table1 <- BSA_past18.5 %>%
+  group_by(user)%>%
+  summarize(Average_mission_composite = mean(mission_composite, na.rm = TRUE),
+            Average_strategy_composite = mean(stragey_composite, na.rm = TRUE), 
+            Average_image_composite = mean(image_composite, na.rm = TRUE), 
+            Average_fundraising_comp = mean(fund_composite, na.rm = TRUE), 
+            Avg_brd_composition_comp = mean(brdcmp_composite, na.rm = TRUE),
+            Avg_programoversight_comp = mean(program_composite, na.rm = TRUE),
+            Avg_fiduciary_comp = mean(Fidoversight_composite, na.rm = TRUE), 
+            Avg_CEOoversight_comp = mean(CEO_supervise_composite, na.rm = TRUE), 
+            Avg_Brdstructure_comp = mean(Brd_str_composite, na.rm = TRUE),
+            Avg_Brdmeeting_comp = mean(meet_composite, na.rm = TRUE)
+            )
+table1 <- data.frame(table1) 
+table2 <- data.frame(t(table1[-1]))
+colnames(table2) <- table1[, 1]
+table2 
+
+##perform all associated t-tests. 
+test1 <- t.test(BSA_past18.5$mission_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)  ##Significant difference
+
+test2 <- t.test(BSA_past18.5$stragey_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)  ##Significant difference
+
+test3 <- t.test(BSA_past18.5$image_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test4 <- t.test(BSA_past18.5$fund_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test5 <- t.test(BSA_past18.5$brdcmp_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test6 <- t.test(BSA_past18.5$program_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test7 <- t.test(BSA_past18.5$Fidoversight_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test8 <- t.test(BSA_past18.5$CEO_supervise_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test9 <- t.test(BSA_past18.5$Brd_str_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+test10 <- t.test(BSA_past18.5$meet_composite ~ BSA_past18.5$user, data = BSA_past18.5, na.rm = TRUE)
+
+result_p <- c(test1$p.value, test2$p.value, test3$p.value, test4$p.value, test5$p.value, test6$p.value, test7$p.value, test8$p.value, test9$p.value, test10$p.value)
+
+result_ts <- c(test1$statistic, test2$statistic, test3$statistic, test4$statistic, test5$statistic, test6$statistic, test7$statistic, test8$statistic, test9$statistic, test10$statistic)
+
+table3 <- cbind.data.frame(table2, result_ts, result_p)
+table3 <- table3 %>%
+  rename('Test Statistic' = result_ts,
+         'P-value' = result_p)
+table3
+
+```
+
+
+```{r multiple takers2, echo=FALSE}
+###compare composite scores at first occasion and last occasion for repeat takers. 
+##create a data-set with just multiple takers, and indicate first-time surveys and last-recorded surveys. 
+BSA_past18.6 <- BSA_past18.5 %>%
+  filter(user == "repeat-taker")
+
+BSA_past18.6 <- BSA_past18.6 %>%
+  group_by(Org_Name)%>%
+  mutate(occasion = case_when(
+    survey_year2 == min(survey_year2, na.rm = TRUE) ~ "first_time",
+    survey_year2 == max(survey_year2, na.rm = TRUE) ~ "last_occasion",
+    TRUE ~ "Neither")
+    )
+
+
+##checking work here. looks fine. 
+#BSA_past18.6 %>%
+ # group_by(Org_Name, survey_year2)%>%
+  #arrange(Org_Name) %>%
+  #select(Org_Name, survey_year2, occasion)
+  
 
 
 ```
