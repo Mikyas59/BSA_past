@@ -21,7 +21,8 @@ library(data.table)
 ```
 
 ```{r import, echo=FALSE}
-BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
+#BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
+BSA_past18 <- read_survey("C:/Users/mikyas.duga/OneDrive - BoardSource/Documents/R/BSA_past/BSA Data 2013-2018.csv")
 
 #questions<-data.frame(names(BSA_past18), get_label(BSA_past18))
 
@@ -30,7 +31,7 @@ BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
 
 ##Make a copy of original file. 
 BSA_past18.2 <- BSA_past18
-#saveRDS(BSA_past18.2, file = "BSA_past18.2") 
+#saveRDS(BSA_past18.2, file = "BSA_past18.2.rds") 
 
 ##Extract date from datetime values in EndDate variable. 
 #BSA_past18.2 <- separate(BSA_past18.2, EndDate, into = c("Survey_enddate", "surveyendtime"), sep = " ", remove = FALSE, convert = TRUE)
@@ -44,9 +45,9 @@ BSA_past18.2 <- BSA_past18
   
 
 ##overall 14,024 responses. Breakdown number of responses by year. 
-#BSA_past18.2 %>%
- # group_by(survey_year)%>%
-  # count(n())
+BSA_past18.2 %>%
+group_by(survey_year)%>%
+count(n())
 
   
 ```
@@ -87,14 +88,14 @@ BSA_past18.2$survey_year2 <- if_else(BSA_past18.2$survey_year2 == "2106", "2016"
 ftable(BSA_past18.2$survey_year2)
 
 ##Get rid of phrases "Board Assessment" and "BSA" for orgnames derived from the importedsurveyname 
-table(str_which(BSA_past18.2$Org_Name, "BSA"))
-table(str_detect(BSA_past18.2$Org_Name, "Board Assessment"))
+# table(str_which(BSA_past18.2$Org_Name, "BSA"))
+# table(str_detect(BSA_past18.2$Org_Name, "Board Assessment"))
 
 BSA_past18.2$Org_Name <- str_remove(BSA_past18.2$Org_Name, "BSA" )
 BSA_past18.2$Org_Name <- str_remove(BSA_past18.2$Org_Name, "Board Assessment")
 
 
-table(str_detect(BSA_past18.2$Org_Name, "BSA"))
+# table(str_detect(BSA_past18.2$Org_Name, "BSA"))
 
 
 ##How many times have orgs taken the survey 
@@ -119,20 +120,20 @@ BSA_past_multi
 BSA_past18.2 <- BSA_past18.2 %>%
   na_if(99)
 
-attach(BSA_past18.2)
-Mission <- BSA_past18.2 %>% 
-   select(starts_with("M_A1"))
-Mission <- colnames(Mission)  ##Variables assessing performance related to mission. 
-Strategy <- BSA_past18.2 %>%
-  select(starts_with("ST_A2"))
-Strategy <- colnames(Strategy)
+#attach(BSA_past18.2)
+#Mission <- BSA_past18.2 %>% 
+ #  select(starts_with("M_A1"))
+#Mission <- colnames(Mission)  ##Variables assessing performance related to mission. 
+#Strategy <- BSA_past18.2 %>%
+ # select(starts_with("ST_A2"))
+#Strategy <- colnames(Strategy)
 
-Fund <- BSA_past18.2 %>%
-  select(F_B1_6_strategy:F_B1_11_fulfill)
-Fund <- colnames(Fund)
+#Fund <- BSA_past18.2 %>%
+ # select(F_B1_6_strategy:F_B1_11_fulfill)
+#Fund <- colnames(Fund)
 
-image <- BSA_past18.2 %>%
-  select(F_B1_1_image:F_B1_5_sources, F_B1_12_impact:F_B1_13_educate)
+#image <- BSA_past18.2 %>%
+ # select(F_B1_1_image:F_B1_5_sources, F_B1_12_impact:F_B1_13_educate)
 
 ##Probably enough for now. 
 
@@ -252,7 +253,6 @@ table3
 
 ```
 
-
 ```{r multiple takers2, echo=FALSE}
 ###compare composite scores at first occasion and last occasion for repeat takers. 
 ##create a data-set with just multiple takers, and indicate first-time surveys and last-recorded surveys. 
@@ -273,7 +273,105 @@ BSA_past18.6 <- BSA_past18.6 %>%
  # group_by(Org_Name, survey_year2)%>%
   #arrange(Org_Name) %>%
   #select(Org_Name, survey_year2, occasion)
-  
+
+##Compare average composite scores between first occasion and last occasion. 
+table3 <- BSA_past18.6 %>%
+  group_by(occasion)%>%
+  summarize(Average_mission_composite = mean(mission_composite, na.rm = TRUE),
+            Average_strategy_composite = mean(stragey_composite, na.rm = TRUE), 
+            Average_image_composite = mean(image_composite, na.rm = TRUE), 
+            Average_fundraising_comp = mean(fund_composite, na.rm = TRUE), 
+            Avg_brd_composition_comp = mean(brdcmp_composite, na.rm = TRUE),
+            Avg_programoversight_comp = mean(program_composite, na.rm = TRUE),
+            Avg_fiduciary_comp = mean(Fidoversight_composite, na.rm = TRUE), 
+            Avg_CEOoversight_comp = mean(CEO_supervise_composite, na.rm = TRUE), 
+            Avg_Brdstructure_comp = mean(Brd_str_composite, na.rm = TRUE),
+            Avg_Brdmeeting_comp = mean(meet_composite, na.rm = TRUE)
+            )
+table3 <- data.frame(table3) 
+table4 <- data.frame(t(table3[-1]))
+colnames(table4) <- table3[, 1]
+table4 
+##Somehow the middle assessments tend to have higher average scores than both first occasion and last occasion. perhaps make an average comparing first-time takers vs those who are taking it a second time or more.  
+
+##perform all associated t-tests. 
+# test1.2 <- t.test(BSA_past18.6$mission_composite ~ BSA_past18.6$occasion, data = BSA_past18.6, na.rm = TRUE)  
+# 
+# test2.2 <- t.test(BSA_past18.6$stragey_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)  
+# 
+# test3.2 <- t.test(BSA_past18.6$image_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test4.2 <- t.test(BSA_past18.6$fund_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test5.2 <- t.test(BSA_past18.6$brdcmp_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test6.2 <- t.test(BSA_past18.6$program_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test7 <- t.test(BSA_past18.6$Fidoversight_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test8 <- t.test(BSA_past18.6$CEO_supervise_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test9 <- t.test(BSA_past18.6$Brd_str_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+# 
+# test10 <- t.test(BSA_past18.6$meet_composite ~ BSA_past18.6$user, data = BSA_past18.6, na.rm = TRUE)
+
+
+```
+
+```{r dei, echo=FALSE}
+###see if there are any trends in dei areas. 
+summary(BSA_past18.5$BC_B2_2_gaps)
+table5 <- BSA_past18.5 %>%
+  group_by(survey_year2)%>%
+  summarise(mean = mean(BC_B2_2_gaps, na.rm = TRUE),
+            median = median(BC_B2_2_gaps, na.rm = TRUE),
+            IQR = IQR(BC_B2_2_gaps, na.rm = TRUE))
+table5
+##no discernible trend over time.             
+
+
+##the previous measure (BC_B2_gaps) is not as important because it doesn't only measure dei. 
+summary(BSA_past18.5$BC_B2_9_diverse)  ##8330 nonresponses. perhaps this was introduced at a later time.  
+
+BSA_past18.5%>%
+  filter(survey_year2 >= 2016)%>%
+  summarise(overall_mean = mean(BC_B2_9_diverse, na.rm = T),
+            overall_median = median(BC_B2_9_diverse, na.rm = T), 
+            overall_sd = sd(BC_B2_9_diverse, na.rm = T))
+
+
+##Average scores by year summary
+BSA_past18.5 %>%
+  group_by(survey_year2)%>%
+  summarise(mean(BC_B2_9_diverse, na.rm = T),
+            sd = sd(BC_B2_9_diverse, na.rm = T), 
+            sum(n()), 
+            no_of_respondents = sum(!is.na(BC_B2_9_diverse))
+          )
+##no observable trend by survey year. 
+
+
+##Summarizing the role of survey participants. (1=CEO, 2=BC, 3=Brd-member)
+table(BSA_past18.5$BSA_Role) ##821 CEOs 
+
+BSA_past18.5 %>%
+  filter(BSA_Role == 1)%>%
+  summarise( mean = mean(ORGD_5_TEXT, na.rm = T),
+             median = median(ORGD_5_TEXT, na.rm = T),
+             quantile(ORGD_5_TEXT, na.rm = T),
+             min = min(ORGD_5_TEXT, na.rm = T),
+             missing = sum(is.na(ORGD_5_TEXT)))
+##only 380 respondents. don't know if this is usable. trying to see summary of org incomes. a lot of non-respondents. 
+
+```
+
+
+
+```{r PDBL, echo=FALSE}
+###PDBL related items. 
+summary(BSA_past18.5$ST_A2_4_change) ##assessing and responding to changes in the env't. 
+summary(BSA_past18.5$F_B1_2_leaders) ##connecting w/ comm. leaders
+summary(BSA_past18.5$F_B1_3_network) ##networking to establish collaboration w/ other org. 
 
 
 ```
