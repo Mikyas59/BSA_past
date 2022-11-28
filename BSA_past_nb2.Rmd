@@ -1,0 +1,60 @@
+---
+title: "BSA Data 2013-2018- Org type"
+author: "BOARDSOURCE"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
+    df_print: paged
+    highlight: tango
+    theme: flatly
+---
+
+
+
+
+```{r libraries, warning=FALSE, include=FALSE}
+library(tidyverse)
+library(flexdashboard)
+library(psych)
+library(qualtRics)
+library(usethis)
+library(sjlabelled)
+library(stringr)
+library(lubridate)
+library(rio)
+library(data.table)
+library(DT)
+
+#use_github(protocol = "https", auth_token = Sys.getenv("GITHUB_PAT"))
+
+
+BSA_past18 <- read_survey("C:/Users/mikyas.duga/OneDrive - BoardSource/Documents/R/BSA_past/BSA Data 2013-2018.csv")
+
+#questions<-data.frame(names(BSA_past18), get_label(BSA_past18))
+
+##Make a copy of original file. 
+BSA_past18.2 <- BSA_past18
+
+BSA_past18.7 <- import("BSA_past18.7.rds")
+##Version of file includes new variables (for repeat takers, chiefexec)
+
+##keep observations only from the last year that org members completed the BSA. 
+
+BSA_oporg <- BSA_past18.7%>%
+  group_by(Org_Name)%>%
+  slice_max(survey_year2)%>%
+  ungroup()
+
+##make sure the above code works as intended. 
+# BSA_past18.7%>%
+#   select(Org_Name, survey_year2, IPAddress)%>%
+#   arrange(Org_Name)%>%
+#   group_by(Org_Name)%>%
+#   slice_max(survey_year2)%>%
+#   ungroup()
+  
+  
+
+
+
+```
