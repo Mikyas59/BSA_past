@@ -1,11 +1,15 @@
 ---
-title: "BSA_past_13-18"
-output:
-  html_document:
+title: "BSA Data 2013-2018"
+author: "BOARDSOURCE"
+date: "`r Sys.Date()`"
+output: 
+  html_document: 
     df_print: paged
+    highlight: tango
+    theme: flatly
 ---
 
-```{r libraries, echo=FALSE}
+```{r libraries, warning=FALSE, include=FALSE}
 library(tidyverse)
 library(flexdashboard)
 library(psych)
@@ -16,11 +20,13 @@ library(stringr)
 library(lubridate)
 library(rio)
 library(data.table)
+library(DT)
 
 #use_github(protocol = "https", auth_token = Sys.getenv("GITHUB_PAT"))
 ```
 
-```{r import, echo=FALSE}
+
+```{r import, include=FALSE}
 #BSA_past18<- read_survey("H:/BSA/BSA Data 2013-2018.csv")
 BSA_past18 <- read_survey("C:/Users/mikyas.duga/OneDrive - BoardSource/Documents/R/BSA_past/BSA Data 2013-2018.csv")
 
@@ -45,14 +51,15 @@ BSA_past18.2 <- BSA_past18
   
 
 ##overall 14,024 responses. Breakdown number of responses by year. 
-BSA_past18.2 %>%
-group_by(survey_year)%>%
-count(n())
+# BSA_past18.2 %>%
+# group_by(survey_year)%>%
+# count(n())
 
   
 ```
 
-```{r wrangle, echo=FALSE, warning=TRUE}
+
+```{r wrangle, warning=TRUE}
 ##How many times did orgs take survey?
 #BSA_past18.2 %>%
  # group_by(Org_Name, survey_year) %>%
@@ -97,6 +104,10 @@ BSA_past18.2$Org_Name <- str_remove(BSA_past18.2$Org_Name, "Board Assessment")
 
 # table(str_detect(BSA_past18.2$Org_Name, "BSA"))
 
+##No. of distinct organizations ##preliminary
+BSA_past18.2 %>%
+  select(Org_Name)%>%
+  n_distinct()
 
 ##How many times have orgs taken the survey 
 BSA_past18.4 <- BSA_past18.2 %>%
@@ -113,7 +124,7 @@ BSA_past_multi
 
 ```
 
-```{r basic board performance summary, echo=FALSE}
+```{r basic board performance summary}
 #Overall summary of board performance aka Benchmarking. 
 
 ##Set 99 to missing. 
@@ -138,22 +149,23 @@ BSA_past18.2 <- BSA_past18.2 %>%
 ##Probably enough for now. 
 
 ##Benchmark values for mission area. 
-mission_bench <- BSA_past18.2 %>%
-  select(starts_with("M_A1"))%>%
-  summarise_all(mean, na.rm = TRUE)
-
-##Create bar chart showing means on mission area. 
-mission_bench <- data.frame(mission_bench)
-mission_bench <- t(mission_bench)
-mission_bench <- data.frame(mission_bench)
-mission_bench$area <- row.names(mission_bench) 
-
-ggplot(data = mission_bench) + 
-  geom_bar(aes(y=area, x=mission_bench), stat = "identity", fill ="lightblue"
-           )  
+# mission_bench <- BSA_past18.2 %>%
+#   select(starts_with("M_A1"))%>%
+#   summarise_all(mean, na.rm = TRUE)
+# 
+# ##Create bar chart showing means on mission area. 
+# mission_bench <- data.frame(mission_bench)
+# mission_bench <- t(mission_bench)
+# mission_bench <- data.frame(mission_bench)
+# mission_bench$area <- row.names(mission_bench) 
+# 
+# ggplot(data = mission_bench) + 
+#   geom_bar(aes(y=area, x=mission_bench), stat = "identity", fill ="lightblue"
+#            )  
 ```
 
-```{r composite scores, echo=FALSE}
+
+```{r composite scores}
 ### Create composite scores for the different areas (mission, strategy, public image, funding, board composition, program oversight, financial oversight, CEO supervision, board structure and meetings.)
 
 BSA_past18.3 <-  BSA_past18.2 %>%
@@ -190,7 +202,8 @@ BSA_past18.3 <- BSA_past18.3 %>%
   
 ```
 
-```{r multiple takers, echo=FALSE}
+
+```{r multiple takers}
 ###Compare composite scores (last occasion vs benchmark for repeat takers)
 ##identify repeat takers in a copy of the working data set. 
 
@@ -253,7 +266,7 @@ table3
 
 ```
 
-```{r multiple takers2, echo=FALSE}
+```{r multiple takers2}
 ###compare composite scores at first occasion and last occasion for repeat takers. 
 ##create a data-set with just multiple takers, and indicate first-time surveys and last-recorded surveys. 
 BSA_past18.6 <- BSA_past18.5 %>%
@@ -318,7 +331,9 @@ table4
 
 ```
 
-```{r dei, echo=FALSE}
+
+
+```{r dei}
 ###see if there are any trends in dei areas. 
 summary(BSA_past18.5$BC_B2_2_gaps)
 table5 <- BSA_past18.5 %>%
@@ -331,14 +346,15 @@ table5
 
 
 ##the previous measure (BC_B2_gaps) is not as important because it doesn't only measure dei. 
-summary(BSA_past18.5$BC_B2_9_diverse)  ##8330 nonresponses. perhaps this was introduced at a later time.  
+summary(BSA_past18.5$BC_B2_9_diverse)  ##8330 non-responses. perhaps this was introduced at a later time.  
 
 BSA_past18.5%>%
   filter(survey_year2 >= 2016)%>%
   summarise(overall_mean = mean(BC_B2_9_diverse, na.rm = T),
             overall_median = median(BC_B2_9_diverse, na.rm = T), 
-            overall_sd = sd(BC_B2_9_diverse, na.rm = T))
-
+            overall_sd = sd(BC_B2_9_diverse, na.rm = T),
+            quantile(BC_B2_9_diverse, na.rm = T))
+##1st quartile =2 & 3rd quartile =4. 
 
 ##Average scores by year summary
 BSA_past18.5 %>%
@@ -361,18 +377,182 @@ BSA_past18.5 %>%
              quantile(ORGD_5_TEXT, na.rm = T),
              min = min(ORGD_5_TEXT, na.rm = T),
              missing = sum(is.na(ORGD_5_TEXT)))
-##only 380 respondents. don't know if this is usable. trying to see summary of org incomes. a lot of non-respondents. 
+##only 380 respondents. don't know if this is usable. trying to see summary of org incomes. A lot of non-respondents. 
 
 ```
 
 
 
-```{r PDBL, echo=FALSE}
+```{r PDBL}
 ###PDBL related items. 
 summary(BSA_past18.5$ST_A2_4_change) ##assessing and responding to changes in the env't. 
 summary(BSA_past18.5$F_B1_2_leaders) ##connecting w/ comm. leaders
 summary(BSA_past18.5$F_B1_3_network) ##networking to establish collaboration w/ other org. 
 
+##compare the bottom quarter and top quarter diversity performances wrt connections with community leaders. 
+BSA_past18.5 <- BSA_past18.5%>%
+  mutate(div_quar = case_when(
+    BC_B2_9_diverse <= 2 ~ 'bottom',
+    BC_B2_9_diverse ==4 ~ 'top')
+    )
+
+# BSA_past18.5%>%
+#   select(BC_B2_9_diverse, div_quar)
+
+table6 <- BSA_past18.5 %>%
+  group_by(div_quar)%>%
+  summarise(mean = mean(F_B1_2_leaders, na.rm = T),
+            sum(n()))
+table6
+
+dfdiv <- BSA_past18.5%>%
+  filter(!is.na(div_quar))
+
+testdiv <- t.test(F_B1_2_leaders ~ div_quar, data = dfdiv)
+tablediv <- cbind(table6, testdiv$statistic, testdiv$p.value)
+tablediv
+
+##Significant difference between those that report a high performance in diversity vs those that report a low performance in divesity wrt connections with community leaders. 
+
+##comparing diversity vs responding to change in the environment 
+BSA_past18.5 %>%
+  group_by(div_quar)%>%
+  summarise( mean = mean(ST_A2_4_change, na.rm = T), 
+             sum(n()))
+
+##Also appears to be a substantial difference. Need a test. 
+
+## A general comparison in performance between top-diversity and bottom-diversity groups (comparison in composite scores). 
+comp_perf <- dfdiv %>%
+  select(mission_composite:div_quar)
+  
+describeBy(comp_perf, group = comp_perf$div_quar, mat = TRUE)
+##orgs that indicate a high performance in diversity also tend to consistently report high performance across all areas (in composite scores). 
+
+
+```
+
+
+
+```{r Budget info}
+##Taking another look at organizational budget information.
+##Avoid multiple appearances from a single org and first check to see federated orgs. 
+table(BSA_past18.5$ORGD_9) ##1=NO, 2=Yes
+
+##Summary for non-federated orgs among CEOs.
+
+
+##Identifying CEOs from the data-set here. The BSA_Role variable classifies a lot of board members as CEOs likely because of the multiple choice wording. Created a classification of CEOs using the 'chiefexec' variable comprised of respondents whose roles were one of the following: CEO, Director or Executive Director.  
+
+###***Don't know which role question is more reliable. 
+##Data-set with chiefexec variable. 
+BSA_past18.7<- BSA_past18.5 %>%
+  mutate(cheifexec = case_when(
+    str_starts(Role, "CEO") ~ 1, 
+    Role == "Director" ~ 1, 
+    Role == "Executive Director" ~ 1, 
+    TRUE ~ 0)
+    )
+
+##Save this file as an rds file. 
+saveRDS(BSA_past18.7, "BSA_past18.7.rds")
+
+# BSA_past18.5%>%
+#   filter(BSA_Role == 1)%>%
+#   summarise(mean = mean(ORGD_5_TEXT, na.rm = T),
+#             sd = sd(ORGD_5_TEXT, na.rm = T),
+#             miss = sum(is.na(ORGD_5_TEXT)),
+#             resp = sum(!is.na(ORGD_5_TEXT)))
+  
+
+# BSA_past18.7 %>%
+#   filter(cheifexec == 1)%>%
+#   summarise(mean = mean(ORGD_5_TEXT, na.rm = T),
+#             sd = sd(ORGD_5_TEXT, na.rm = T),
+#             miss = sum(is.na(ORGD_5_TEXT)),
+#             resp = sum(!is.na(ORGD_5_TEXT)))
+
+ ##more responses under cheifexec option. Removing the cheifexec filter will only produce 5 more responses. 
+ ##Will stick with the cheifexec variable for now. 
+
+##Select CEOs from non-federated orgs, 
+
+BSA_past18.7 %>%
+  filter(ORGD_9==1 & cheifexec == 1)%>%
+  group_by(Org_Name)%>%
+  arrange(Org_Name, desc(survey_year2))%>%
+  select(Org_Name, survey_year2, ORGD_5_TEXT)
+
+
+##When there are multiple survey-years available for an org, take the average. Keep only one response for a single organization.  
+BSA_bud2 <- BSA_past18.7 %>%
+  filter(ORGD_9==1 & cheifexec == 1)%>%
+  group_by(Org_Name)%>%
+  arrange(Org_Name, desc(survey_year2))%>%
+  mutate(average_budget = mean(ORGD_5_TEXT, na.rm = T))%>%
+  distinct(Org_Name, .keep_all = T)
+
+summary(BSA_bud2$average_budget)  ###only 280 responses from 454. 
+
+##How many organizations have a budget between 50,000 and 20,000,000 (to limit the data-set to be more representative)
+# BSA_bud2 %>%
+#   filter(average_budget >= 50000 & average_budget <= 20000000)%>%
+#   summarise(mean = mean(average_budget, na.rm = T),
+#             quantile(average_budget, na.rm = T),
+#             no_res = sum(n()))
+
+BSA_bud2 %>%
+  group_by(Org_Name)%>%
+  arrange(Org_Name, desc(survey_year2))%>%
+  distinct(Org_Name, .keep_all = T)%>%
+  ungroup()%>%
+  filter(average_budget >= 50000 & average_budget <= 20000000)%>%
+  summarise(mean = mean(average_budget, na.rm = T),
+            quantile(average_budget, na.rm = T),
+            median = median(average_budget, na.rm = T),
+            no.of.res = sum(n()))
+
+##Had to use the group and ungroup commands to get it to work properly. Median budget is at approximately 3.5M and mean 5.6M. May be more reasonable.
+##Grouping by IRS classification doesn't yield useful info. most organizations are 501c3s. Not many observations for other classes. 
+
+
+```
+
+
+
+```{r Org characteristics}
+##Data-set with CEO responses only. Kept the last response per organization. 
+BSA_past18.8 <- BSA_past18.7 %>%
+  filter(cheifexec == 1)%>%
+  group_by(Org_Name)%>%
+  arrange(Org_Name, desc(survey_year2))%>%
+  distinct(Org_Name, .keep_all = T)
+
+
+
+##Summary of mission areas, IRS class, year founded, no. of FTE employees
+table(BSA_past18.8$ORGD_2)
+
+table(BSA_past18.8$ORGD_1) ##IRS class. 1=PC, 2=Private foundation
+
+table(BSA_past18.8$ORGD_3) ##yr founded
+
+summary(BSA_past18.8$ORGD_7) ##No. of FTE employees 
+
+summary(BSA_past18.8$BDI_1)  ##No. of voting board members. 
+
+# Still dealing with very large organizations with an average of 233 employees (median = 34). Most orgs are 501c3.
+
+##Summary of overall effectiveness (asked to all respondents - very dissatisfied to very satisfied) 
+summary(BSA_past18.5$BCE_1_2_effective)  ##average respondent is 'satisfied.'
+prop.table(table(BSA_past18.5$BCE_1_2_effective))*100
+
+n_distinct(BSA_past18.5$RecipientEmail)  ##No way to identify individuals who have taken the survey multiple times except for perhaps IP address. 
+
+n_distinct(BSA_past18.5$IPAddress)  ##12125 unique IP addresses. 
+
+summary(BSA_past18.5$BCE_1_4_rewarding) ##Most are satisfied or very satisfied.
+prop.table(table(BSA_past18.5$BCE_1_4_rewarding))*100
 
 ```
 
