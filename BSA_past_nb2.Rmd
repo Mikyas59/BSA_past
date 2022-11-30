@@ -10,8 +10,6 @@ output:
 ---
 
 
-
-
 ```{r libraries, warning=FALSE, include=FALSE}
 library(tidyverse)
 library(flexdashboard)
@@ -53,8 +51,219 @@ BSA_oporg <- BSA_past18.7%>%
 #   slice_max(survey_year2)%>%
 #   ungroup()
   
-  
+```
 
+
+```{r perfromance by IRS class}
+table(BSA_oporg$ORGD_1)
+
+# comp_perf2 <- BSA_oporg %>%
+#   select(mission_composite:meet_composite, ORGD_1)
+# 
+# ##Mostly interested in comparing performance between groups 1 (PC) and 2 (private foundation).
+# 
+# describeBy(comp_perf2, group = comp_perf2$ORGD_1, mat = TRUE)
+##only CEOs respond to IRS class question, so number of responses is limited to about 700. 
+
+##Come up with a method to incorporate responses from other participants (not just CEOs)
+
+BSA_oporg$class2 <- BSA_oporg$ORGD_1
+
+
+BSA_oporg <- BSA_oporg%>%
+  group_by(Org_Name)%>%
+  fill(class2, .direction = "updown")%>%
+  ungroup()
+
+table(BSA_oporg$ORGD_1, exclude = F)
+table(BSA_oporg$class2, exclude = F)
+
+# BSA_oporg%>%
+#   group_by(Org_Name)%>%
+#   arrange(Org_Name)%>%
+#   select(Org_Name, ORGD_1, class2)
+
+comp_perf2 <- BSA_oporg %>%
+ filter(class2 == 1 | class2 == 2) %>%
+  select(mission_composite:meet_composite, ORGD_1, class2)
+  
+# pairs(comp_perf2)
+
+describeBy(comp_perf2, group = comp_perf2$class2, mat = TRUE)
+
+##Run t-tests for performance composite variables. 
+
+comp_perf2$class2 <- as.factor(comp_perf2$class2)
+
+comp_perf3 <- comp_perf2 %>%
+  select(-(ORGD_1))
+
+comp_perf3 <- as.data.frame(comp_perf3)
+
+# for (i in 1:10) {
+#   
+#   print(t.test(comp_perf3[, i]~ comp_perf3$class2)) $p.value
+# }
+
+# output <- numeric(length = length(1:10))
+
+# for (i in 1:10) {
+#   output[[i]] <- ((t.test(comp_perf3[, i] ~ comp_perf3$class2)$p.value))
+# }
+# output
+
+p_val <- vector("list", length(comp_perf3) )
+PC_mean <- vector("list", length(comp_perf3) )
+PF_mean <- vector("list", length(comp_perf3) )
+for (i in 1:10) {
+  p_val[[i]] <- ((t.test(comp_perf3[, i] ~ comp_perf3$class2)$p.value))
+  PC_mean[[i]] <- ((t.test(comp_perf3[, i] ~ comp_perf3$class2)$estimate[1]))
+  PF_mean[[i]] <- ((t.test(comp_perf3[, i] ~ comp_perf3$class2)$estimate[2]))
+}
+
+p_val<- as.data.frame(unlist(p_val))
+PC_mean<- as.data.frame(unlist(PC_mean))
+PF_mean <- as.data.frame(unlist(PF_mean))
+
+table_PCv.PF <- cbind(PC_mean, PF_mean, p_val)
+row.names(table_PCv.PF) <- colnames(comp_perf3[1:10])
+table_PCv.PF
+##Private foundation tend to report higher performance among many of the performance categories. 
 
 
 ```
+
+
+```{r Performance on DEI and PDBL by IRS class}
+##Look at DEI item by type of organization. 
+##Excluding responses from organizations that are not a pc or pf. 
+BSA_oporg.pcpf <- BSA_oporg%>%
+  filter(class2 == 1 | class2 == 2) 
+BSA_oporg.pcpf <- as.data.frame(BSA_oporg.pcpf)
+
+BSA_oporg.pcpf %>%
+  group_by(class2)%>%
+  summarise(mean = mean(BC_B2_9_diverse, na.rm = T),
+            sd = sd(BC_B2_9_diverse, na.rm = T), 
+            ttest_pval = t.test(BSA_oporg.pcpf$BC_B2_9_diverse ~ BSA_oporg.pcpf$class2)$p.value)
+
+##No evidence that performance on ensuring diversity differs between public charities and private foundations. 
+
+
+###Looking at PDBL items and rewarding experience. 
+pdblpcpf <- BSA_oporg.pcpf %>%
+  group_by(class2)%>%
+  summarise(mean_envt.changes = mean(ST_A2_4_change, na.rm = T),
+            sd_envt.changes = sd(ST_A2_4_change, na.rm = T), 
+            envt.changes_pval = t.test(BSA_oporg.pcpf$ST_A2_4_change ~ BSA_oporg.pcpf$class2)$p.value, 
+            mean_comm.leaders = mean(F_B1_2_leaders, na.rm = T), 
+            sd_comm.leaders = sd(F_B1_2_leaders, na.rm = T), 
+            comm.leaders_pval = t.test(BSA_oporg.pcpf$F_B1_2_leaders ~ BSA_oporg.pcpf$class2)$p.value,
+            mean_collab = mean(F_B1_3_network, na.rm = T), 
+            sd_collab = sd(F_B1_3_network, na.rm = T), 
+            collab_pval = t.test(BSA_oporg.pcpf$F_B1_3_network ~ BSA_oporg.pcpf$class2)$p.value)
+
+pdblpcpf <- as.data.frame(pdblpcpf)
+pdblpcpf2 <- t(pdblpcpf[-1])
+colnames(pdblpcpf2) <- pdblpcpf[,1]
+pdblpcpf2
+
+##Private foundations report higher board performance in responding to changes in the environment. No significant differences in establishing connections with community leaders or networking/collaborating with other organizations. 
+
+
+
+##comparing overall effectiveness and board member experience. 
+pdblgq <- BSA_oporg.pcpf %>%
+  group_by(class2)%>%
+  summarise(mean_overall.effectiveness = mean(BCE_1_2_effective, na.rm = T),
+            sd_overall.effectiveness = sd(BCE_1_2_effective, na.rm = T), 
+            overall.effectiveness_pval = t.test(BSA_oporg.pcpf$BCE_1_2_effective ~ BSA_oporg.pcpf$class2)$p.value, 
+            mean_rewarding = mean(BCE_1_4_rewarding, na.rm = T), 
+            sd_rewarding = sd(BCE_1_4_rewarding, na.rm = T), 
+            rewarding_pval = t.test(BSA_oporg.pcpf$BCE_1_4_rewarding ~ BSA_oporg.pcpf$class2)$p.value)
+
+pdblgq <- as.data.frame(pdblgq)
+pdblgq2 <- t(pdblgq[-1])
+colnames(pdblgq2) <- pdblgq[,1]
+pdblgq2
+
+##Private foundations report higher overall effectiveness and express a more rewarding board experience. 
+
+```
+
+
+```{r Boardsize and budget}
+##summary of board sizes. 
+summary(BSA_oporg$BDI_1)
+
+BSA_oporg.pcpf %>%
+  group_by(class2)%>%
+  summarise(mean = mean(BDI_1, na.rm= T),
+            median = median(BDI_1, na.rm= T), 
+            No.ofres = sum(n()),
+            pval = t.test(BSA_oporg.pcpf$BDI_1 ~ BSA_oporg.pcpf$class2)$p.value)
+###On average, Private foundations tend to have slightly smaller boards (13.7) than public charities (16.9). 
+
+
+print(corr.test(BSA_oporg$BDI_1, BSA_oporg$ORGD_5_TEXT), short = F)
+##Very Weak correlation between budget size and board size. (r=0.13)
+
+```
+
+
+```{r locate participants}
+library(rgeolocate)
+
+# str(BSA_oporg$IPAddress)
+
+location <- ip2location(
+  BSA_oporg$IPAddress,
+  file <- ("C:\\Users/mikyas.duga/OneDrive - BoardSource/Documents/R Data Resources/IP2LOCATION-LITE-DB5.IPV6.BIN/IP2LOCATION-LITE-DB5.IPV6.BIN"),
+  fields = c("country_name", "lat", "long", "region", "city")
+)
+
+# location %>%
+#   count(is.na(location$lat))
+# ##Only two missing values for both latitude and longitude. Can be ignored. 
+# 
+# location%>%
+#   count(is.na(location$long))
+
+##Adding location information to the one response per org data-set.
+##Adding longitude and latitude information to previously unfilled (NA) columns: locationlatitude and locationlongitude. 
+
+BSA_oporg2 <- BSA_oporg%>%
+  mutate(LocationLatitude = location$lat)%>%
+  mutate(LocationLongitude = location$long)%>%
+  mutate(state = location$region)%>%
+  mutate(city = location$city)%>%
+  mutate(country = location$country_name)
+
+###Location data does not necessarily represent where organizations are performing service. It only indicates the location from where respondents are taking the BSA. 
+
+library(maps)
+usa <- map_data("usa")
+
+##limit to only us based takers. Exclude several respondents based in Alaska and Hawaii. 
+location2 <- location%>%
+  filter(country_name == "United States of America")%>%
+  filter(region != "Hawaii" & region!="Alaska")
+
+
+gg1 <- ggplot()+
+  geom_polygon(data = usa, aes(x=long, y = lat, group = group), fill = NA, color = "red") + 
+  geom_point(data = location2, aes(x=long, y =lat), color = "black") +
+  coord_fixed(1.3) +
+theme_minimal()
+gg1
+
+table_location <- as.data.frame(table(location2$region))
+table_location %>%
+  arrange(desc(Freq))%>%
+  mutate(percent = Freq / sum(Freq) * 100)
+
+##Proportion for respondents based in the continental United States.   
+
+
+```
+
